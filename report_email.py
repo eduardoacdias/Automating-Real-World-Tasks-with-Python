@@ -1,43 +1,44 @@
-#! /usr/bin/env python3
-
-import datetime
+#!/usr/bin/env python3
+ 
+import reports
+import emails
 import os
-
-from run import catalog_data
-from reports import generate_report
-from emails import generate_email, send_email
-
-
-def pdf_body(input_for,desc_dir):
-	"""Generating a summary with two lines, which gives the output name and weight"""
-	res = []
-	wt = []
-	for item in os.listdir(desc_dir):
-	  filename=os.path.join(desc_dir,item)
-	  with open(filename) as f:
-	  	line=f.readlines()
-	  	weight=line[1].strip('\n')
-	  	name=line[0].strip('\n')
-	  	print(name,weight)
-	  	res.append('name: ' +name)
-	  	wt.append('weight: ' +weight)
-	  	print(res)
-	  	print(wt)
-	new_obj = ""  # initializing the object
-	# Calling values from two lists one by one.
-	for i in range(len(res)):
-		if res[i] and input_for == 'pdf':
-			new_obj += res[i] + '<br />' + wt[i] + '<br />' + '<br />'
-	return new_obj
-
+from datetime import date
+ 
+ 
+BASEPATH_SUPPLIER_TEXT_DES = os.path.expanduser('~') + '/supplier-data/descriptions/'
+list_text_files = os.listdir(BASEPATH_SUPPLIER_TEXT_DES)
+ 
+report = []
+ 
+def process_data(data):
+    for item in data:
+        report.append("name: {}<br/>weight: {}\n".format(item[0], item[1]))
+    return report
+ 
+text_data = []
+for text_file in list_text_files:
+    with open(BASEPATH_SUPPLIER_TEXT_DES + text_file, 'r') as f:
+        text_data.append([line.strip() for line in f.readlines()])
+        f.close()
+ 
 if __name__ == "__main__":
-	user = os.getenv('USER')
-	description_directory = '/home/{}/supplier-data/descriptions/'.format(user)  # The dir...
-	current_date = datetime.date.today().strftime("%B %d, %Y")  # Creating data in format...
-	title = 'Processed Update on ' + str(current_date)  # Title for the PDF file with the...
-	generate_report('/tmp/processed.pdf', title, pdf_body('pdf',description_directory))
-	email_subject = 'Upload Completed - Online Fruit Store'  # subject line give in assig...
-	email_body = 'All fruits are uploaded to our website successfully. A detailed list is...'
-	msg = generate_email("automation@example.com", "<username>@example.com".format(user),...
-						 email_subject, email_body, "/tmp/processed.pdf")  # structuring...
-	send_email(msg)
+ 
+    summary = process_data(text_data)
+ 
+    # Generate a paragraph that contains the necessary summary
+    paragraph = "<br/><br/>".join(summary)
+ 
+    # Generate the PDF report
+    title = "Processed Update on {}\n".format(date.today().strftime("%B %d, %Y"))
+    attachment = "/tmp/processed.pdf"
+ 
+    reports.generate_report(attachment, title, paragraph)
+ 
+    # Send the email
+    subject = "Upload Completed - Online Fruit Store"
+    sender = "automation@example.com"
+    receiver = "{}@example.com".format(os.environ.get('USER'))
+    body = "All fruits are uploaded to our website successfully. A detailed list is attached to this email."
+    message = emails.generate_email(sender, receiver, subject, body, attachment)
+    emails.send_email(message)
